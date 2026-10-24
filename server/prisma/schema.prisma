@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model BusinessSettings {
+  id             Int    @id @default(1)
+  name           String @default("SATYA SAI MEDICAL AGENCIES")
+  address        String @default("plot no 143, Road No 8, Mothevari Thota, Pathebad, ELURU - 534002")
+  phone          String @default("9491722324")
+  gstin          String @default("37CBNPB8185P1ZR")
+  dl_20b         String @default("AP/05/01/2014-120610")
+  dl_21b         String @default("AP/05/01/2014-120611")
+  state          String @default("AP")
+  state_code     String @default("37")
+  bank_name      String @default("State Bank of India R.R.Pet, Eluru. BR")
+  account_no     String @default("37047328014")
+  ifsc_code      String @default("SBIN0009771")
+  terms          String @default("Drugs Supplied comply with Sec 18 of Drugs & Cosmetics Act 1940 and Rules there under. Goods sold on understanding buyer holds requisite drug municipal tax. No claims for shortages/breakages once goods leave our premises. All disputes subject to Eluru Jurisdiction only.")
+  invoice_prefix String @default("A")
+  next_seq       Int    @default(35)
+}
+
+model Client {
+  id         Int       @id @default(autoincrement())
+  name       String
+  address    String    @default("")
+  phone      String    @default("")
+  gstin      String    @default("")
+  dl_20b     String    @default("")
+  dl_21b     String    @default("")
+  state      String    @default("")
+  state_code String    @default("")
+  createdAt  DateTime  @default(now())
+
+  invoicesBilled   Invoice[] @relation("BilledTo")
+  invoicesShipped  Invoice[] @relation("ShippedTo")
+}
+
+model Product {
+  id           Int      @id @default(autoincrement())
+  mfr          String   @default("")
+  hsn          String   @default("")
+  name         String
+  batch_no     String   @default("")
+  expiry       String   @default("")
+  uom          String   @default("NOS")
+  mrp          Float    @default(0)
+  ptr          Float    @default(0)
+  default_rate Float    @default(0)
+  stock_qty    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  invoiceItems InvoiceItem[]
+}
+
+model Invoice {
+  id               Int       @id @default(autoincrement())
+  invoice_no       String    @unique
+  date             String
+  client_id        Int
+  ship_to_client_id Int?
+  total_qty        Int       @default(0)
+  subtotal         Float     @default(0)
+  discount         Float     @default(0)
+  round_off        Float     @default(0)
+  net_total        Float     @default(0)
+  amount_in_words  String    @default("")
+  attachment_path  String?
+  is_quotation     Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  client     Client  @relation("BilledTo",  fields: [client_id],         references: [id])
+  shipTo     Client? @relation("ShippedTo", fields: [ship_to_client_id], references: [id])
+  items      InvoiceItem[]
+}
+
+model InvoiceItem {
+  id           Int     @id @default(autoincrement())
+  invoice_id   Int
+  product_id   Int?
+  mfr          String  @default("")
+  hsn          String  @default("")
+  name         String  @default("")
+  batch_no     String  @default("")
+  expiry       String  @default("")
+  uom          String  @default("")
+  mrp          Float   @default(0)
+  qty          Int     @default(0)
+  free         Int     @default(0)
+  rate         Float   @default(0)
+  ptr          Float   @default(0)
+  amount       Float   @default(0)
+  discount_pct Float   @default(0)
+  total        Float   @default(0)
+  sort_order   Int     @default(0)
+
+  invoice Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [product_id], references: [id])
+}
