@@ -2,11 +2,19 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
+import os from 'os';
 import prisma from '../prisma.js';
 import { numberToWords } from '../utils/numberToWords.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const upload = multer({ dest: path.join(__dirname, '..', '..', 'uploads') });
+const uploadDir = process.env.VERCEL
+  ? path.join(os.tmpdir(), 'uploads')
+  : path.join(__dirname, '..', '..', 'uploads');
+try {
+  fs.mkdirSync(uploadDir, { recursive: true });
+} catch {}
+const upload = multer({ dest: uploadDir });
 const r = Router();
 
 // ── next invoice number ───────────────────────────────────────────────────────

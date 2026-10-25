@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently -n SERVER,CLIENT -c bgBlue,bgGreen \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run prisma:generate --prefix server && npm run build --prefix client",
     "setup": "npm install && npm install --prefix server && npm install --prefix client && npm run db:migrate && npm run db:seed",
     "db:migrate": "npm run prisma:migrate --prefix server",
     "db:seed": "npm run prisma:seed --prefix server"
