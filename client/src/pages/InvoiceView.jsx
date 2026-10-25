@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Printer, Edit, ArrowLeft, Trash2, Download } from 'lucide-react';
+import { Printer, Edit, ArrowLeft, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { get, del } from '../api/api.js';
 
@@ -37,17 +37,29 @@ export default function InvoiceView() {
 
   const s = inv.settings || {};
   const b = inv.client || {};
-  const c = inv.ship_to_client || b;
+  const c = inv.shipTo || b;
   const items = inv.items || [];
-
-  // Pad blank rows so the printed table has a consistent traditional bill height
-  const minRows = 8;
-  const padCount = Math.max(0, minRows - items.length);
-  const blankRows = Array.from({ length: padCount });
 
   const handlePrint = () => {
     window.print();
   };
+
+  const formatBillDate = (dStr) => {
+    if (!dStr) return '';
+    if (dStr.includes('/')) return dStr;
+    const parts = dStr.split('-');
+    if (parts.length === 3) {
+      const y = parts[0];
+      const m = parseInt(parts[1], 10);
+      const d = parseInt(parts[2], 10);
+      return `${d}/${m}/${y}`;
+    }
+    return dStr;
+  };
+
+  // Calibrated for standard Indian Half-Page A4 Bill of Supply
+  const targetRows = 9;
+  const blankHeight = Math.max(25, (targetRows - items.length) * 16);
 
   return (
     <div className="space-y-6 pb-16">
@@ -76,212 +88,378 @@ export default function InvoiceView() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════
-          A4 LANDSCAPE BILL OF SUPPLY CONTAINER
-          Matches index.css print rules & on-screen preview
+          EXACT REPRODUCTION OF BILL OF SUPPLY FORMAT
+          Matches uploaded bill format 1-to-1
           ═══════════════════════════════════════════════════════ */}
-      <div className="invoice-print-page bg-white p-6 md:p-8 rounded-xl shadow-lg border border-slate-300 max-w-[1100px] mx-auto text-black font-sans">
-        {/* Title */}
-        <h1 className="inv-title text-center text-xl md:text-2xl font-black uppercase tracking-widest border-b-2 border-black pb-1 mb-2">
-          BILL OF SUPPLY
-        </h1>
-
-        {/* Top meta row */}
-        <div className="inv-meta flex justify-between items-center text-xs font-bold mb-2">
-          <div className="text-slate-700">GST INVOICE / CASH MEMO</div>
-          <div className="flex gap-8">
-            <div>
-              <span>Invoice No: </span>
-              <span className="font-black text-black text-sm">{inv.invoice_no}</span>
-            </div>
-            <div>
-              <span>Date: </span>
-              <span className="font-black text-black">{inv.date}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 3 Parties Block */}
-        <div className="inv-parties grid grid-cols-1 md:grid-cols-3 border border-black mb-2 text-[11px] leading-tight divide-y md:divide-y-0 md:divide-x divide-black">
-          {/* Seller */}
-          <div className="inv-party-block p-2">
-            <div className="inv-party-title font-bold uppercase border-b border-black pb-1 mb-1 text-[10px]">
-              Details of Supplier (Seller)
-            </div>
-            <div className="inv-party-name font-black text-xs text-black">{s.name || 'SATYA SAI MEDICAL AGENCIES'}</div>
-            <div>{s.address}</div>
-            <div>Cell: {s.phone}</div>
-            <div>GSTIN: <span className="font-semibold">{s.gstin}</span></div>
-            <div>D.L.No: 20B: {s.dl_20b} | 21B: {s.dl_21b}</div>
-            <div>State: {s.state} (Code: {s.state_code})</div>
+      <div className="invoice-print-wrapper bg-slate-100 p-2 sm:p-6 rounded-xl overflow-x-auto">
+        <div className="bill-of-supply bg-white text-black font-sans mx-auto w-full max-w-[1020px] p-2 sm:p-4 text-[10px] leading-tight select-text shadow-md">
+          {/* Centered Document Title */}
+          <div className="text-center font-bold text-xs sm:text-sm tracking-wide mb-1 uppercase">
+            BILL OF SUPPLY
           </div>
 
-          {/* Billed To */}
-          <div className="inv-party-block p-2">
-            <div className="inv-party-title font-bold uppercase border-b border-black pb-1 mb-1 text-[10px]">
-              Details of Receiver (Billed To)
-            </div>
-            <div className="inv-party-name font-black text-xs text-black">{b.name}</div>
-            <div>{b.address || '—'}</div>
-            <div>Phone: {b.phone || '—'}</div>
-            <div>GSTIN: <span className="font-semibold">{b.gstin || '—'}</span></div>
-            <div>D.L.No: 20B: {b.dl_20b || '—'} | 21B: {b.dl_21b || '—'}</div>
-            <div>State: {b.state || 'Andhra Pradesh'} (Code: {b.state_code || '37'})</div>
-          </div>
+          {/* Outer Bordered Container - Uniform 1px boundary */}
+          <div className="bill-outer-box border border-black box-border w-full bg-white">
+            {/* Header / Parties Section (Fixed table layout with dedicated State row) */}
+            <table className="w-full table-fixed border-collapse text-[9.5px]">
+              <colgroup>
+                <col style={{ width: '37%' }} />
+                <col style={{ width: '27%' }} />
+                <col style={{ width: '36%' }} />
+              </colgroup>
+              <tbody>
+                {/* Row 1: Header party details */}
+                <tr>
+                  {/* Column 1: Supplier (Seller) */}
+                  <td className="border-r border-black p-0 align-top">
+                    <div>
+                      {/* Inner Box for Agency Name & Address */}
+                      <div className="border border-black m-1 p-1 text-center">
+                        <div className="font-bold text-[11px] uppercase tracking-wide">
+                          {s.name || 'SATYA SAI MEDICAL AGENCIES'}
+                        </div>
+                        <div className="text-[9px] mt-0.5">
+                          plot no 143, Road No 8, Mothevari Thota, Pathebad
+                        </div>
+                        <div className="text-[9px] underline">
+                          , E L U R U - 5 3 4 0 0 2.
+                        </div>
+                      </div>
 
-          {/* Shipped To */}
-          <div className="inv-party-block p-2">
-            <div className="inv-party-title font-bold uppercase border-b border-black pb-1 mb-1 text-[10px]">
-              Details of Consignee (Shipped To)
-            </div>
-            <div className="inv-party-name font-black text-xs text-black">{c.name}</div>
-            <div>{c.address || b.address || '—'}</div>
-            <div>Phone: {c.phone || b.phone || '—'}</div>
-            <div>GSTIN: <span className="font-semibold">{c.gstin || b.gstin || '—'}</span></div>
-            <div>D.L.No: 20B: {c.dl_20b || b.dl_20b || '—'} | 21B: {c.dl_21b || b.dl_21b || '—'}</div>
-            <div>State: {c.state || b.state || 'Andhra Pradesh'} (Code: {c.state_code || b.state_code || '37'})</div>
-          </div>
-        </div>
+                      {/* Supplier License & Tax Numbers */}
+                      <div className="px-2 pt-1 pb-1 space-y-0.5 text-[9.5px]">
+                        <div>
+                          <span className="font-bold">GSTIN NUMBER: </span>
+                          <span className="font-bold">{s.gstin || '37CBNPB8185P1ZR'}</span>
+                        </div>
+                        <div>20 B: {s.dl_20b || 'AP/05/01/2014-120610'}</div>
+                        <div>21 B: {s.dl_21b || 'AP/05/01/2014-120611'}</div>
+                        <div className="text-right pr-6 font-semibold">
+                          <span className="font-bold">CELL &nbsp;: </span>{s.phone || '9491722324'}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
 
-        {/* Items Table */}
-        <div className="overflow-x-auto">
-          <table className="inv-table w-full border-collapse border border-black text-[10px] text-center">
-            <thead>
-              <tr className="bg-black text-white font-bold text-[9px] uppercase">
-                <th className="border border-black p-1">#</th>
-                <th className="border border-black p-1 text-left min-w-[140px]">Product / Tablet</th>
-                <th className="border border-black p-1">MFR</th>
-                <th className="border border-black p-1">HSN</th>
-                <th className="border border-black p-1">Batch</th>
-                <th className="border border-black p-1">Exp</th>
-                <th className="border border-black p-1">UOM</th>
-                <th className="border border-black p-1 text-right">MRP ₹</th>
-                <th className="border border-black p-1 text-center font-black">Qty</th>
-                <th className="border border-black p-1 text-center">Free</th>
-                <th className="border border-black p-1 text-right font-black">Rate ₹</th>
-                <th className="border border-black p-1 text-right">PTR ₹</th>
-                <th className="border border-black p-1 text-right">Amount ₹</th>
-                <th className="border border-black p-1 text-center">Disc %</th>
-                <th className="border border-black p-1 text-right font-black">Total ₹</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((it, idx) => (
-                <tr key={it.id || idx} className="border-b border-black">
-                  <td className="border border-black p-1 text-center">{idx + 1}</td>
-                  <td className="border border-black p-1 text-left font-bold">{it.product?.name || it.name}</td>
-                  <td className="border border-black p-1 text-center">{it.product?.mfr || it.mfr || '—'}</td>
-                  <td className="border border-black p-1 text-center font-mono">{it.product?.hsn || it.hsn || '—'}</td>
-                  <td className="border border-black p-1 text-center font-mono">{it.batch_no || '—'}</td>
-                  <td className="border border-black p-1 text-center">{it.expiry || '—'}</td>
-                  <td className="border border-black p-1 text-center">{it.uom || 'NOS'}</td>
-                  <td className="border border-black p-1 text-right">{Number(it.mrp || 0).toFixed(2)}</td>
-                  <td className="border border-black p-1 text-center font-black text-xs">{it.qty}</td>
-                  <td className="border border-black p-1 text-center">{it.free || 0}</td>
-                  <td className="border border-black p-1 text-right font-bold">{Number(it.rate || 0).toFixed(2)}</td>
-                  <td className="border border-black p-1 text-right">{Number(it.ptr || 0).toFixed(2)}</td>
-                  <td className="border border-black p-1 text-right">{Number(it.amount || 0).toFixed(2)}</td>
-                  <td className="border border-black p-1 text-center">{it.discount_pct || 0}%</td>
-                  <td className="border border-black p-1 text-right font-black text-xs">{Number(it.total || 0).toFixed(2)}</td>
+                  {/* Column 2: Receiver (Billed To) */}
+                  <td className="border-r border-black p-0 align-top">
+                    <div>
+                      {/* Top Invoice Number Header cell */}
+                      <div className="grid grid-cols-2 border-b border-black divide-x divide-black text-center font-bold text-[9.5px]">
+                        <div className="py-0.5 uppercase">INVOICE NUMBER</div>
+                        <div className="py-0.5 text-[10px] uppercase">{inv.invoice_no}</div>
+                      </div>
+
+                      {/* Party Title Header */}
+                      <div className="flex justify-between items-center px-1.5 py-0.5 border-b border-black text-[9px]">
+                        <span>Detail of Receiver</span>
+                        <span>Billed to :</span>
+                      </div>
+
+                      {/* Receiver Information */}
+                      <div className="px-1.5 py-1 space-y-0.5 text-[9.5px]">
+                        <div>
+                          <span className="font-bold">NAME &nbsp;&nbsp;&nbsp;: &nbsp;</span>
+                          <span className="font-bold uppercase">{b.name}</span>
+                        </div>
+                        <div className="flex items-start">
+                          <span className="font-bold shrink-0">ADDRESS : &nbsp;</span>
+                          <div className="text-[9px] leading-tight break-words overflow-hidden">
+                            <div>{b.address || '—'}</div>
+                            {b.phone && (
+                              <div className="mt-0.5 font-normal">
+                                <span className="font-semibold">CELL NO:</span>{b.phone}.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="font-bold">GSTIN/UIN: &nbsp;</span>
+                          <span className="font-semibold">{b.gstin || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="font-bold">20 B : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                          <span>{b.dl_20b || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="font-bold">21 B: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                          <span>{b.dl_21b || '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Column 3: Consignee (Shipped To) */}
+                  <td className="p-0 align-top">
+                    <div>
+                      {/* Top Invoice Date Header cell */}
+                      <div className="grid grid-cols-2 border-b border-black divide-x divide-black text-center font-bold text-[9.5px]">
+                        <div className="py-0.5 uppercase">INVOICE DATE:</div>
+                        <div className="py-0.5 text-[10px]">{formatBillDate(inv.date)}</div>
+                      </div>
+
+                      {/* Party Title Header */}
+                      <div className="flex justify-between items-center px-1.5 py-0.5 border-b border-black text-[9px]">
+                        <span>Details of Consignee</span>
+                        <span>Shipped to :</span>
+                      </div>
+
+                      {/* Consignee Information */}
+                      <div className="px-1.5 py-1 space-y-0.5 text-[9.5px]">
+                        <div>
+                          <span className="font-bold">NAME &nbsp;&nbsp;&nbsp;&nbsp;: &nbsp;</span>
+                          <span className="font-bold uppercase">{c.name || b.name}</span>
+                        </div>
+                        <div className="flex items-start">
+                          <span className="font-bold shrink-0">ADDRESS : &nbsp;</span>
+                          <div className="text-[9px] leading-tight break-words overflow-hidden">
+                            <div>{c.address || b.address || '—'}</div>
+                            {(c.phone || b.phone) && (
+                              <div className="mt-0.5 font-normal">
+                                <span className="font-semibold">CELL NO:</span>{c.phone || b.phone}.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="font-bold">GSTIN/UIN: &nbsp;</span>
+                          <span className="font-semibold">{c.gstin || b.gstin || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="font-bold">20 B : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                          <span>{c.dl_20b || b.dl_20b || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="font-bold">21 B: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                          <span>{c.dl_21b || b.dl_21b || '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
                 </tr>
-              ))}
 
-              {/* Blank spacing rows */}
-              {blankRows.map((_, i) => (
-                <tr key={`blank-${i}`} className="blank-row border-b border-black">
-                  <td className="border border-black p-1 text-transparent select-none">-</td>
-                  <td className="border border-black p-1"></td>
-                  <td className="border border-black p-1"></td>
-                  <td className="border border-black p-1"></td>
-                  <td className="border border-black p-1"></td>
-                  <td className="border border-black p-1"></td>
-                  <td className="border border-black p-1"></td>
-                  <td className="border border-black p-1"></td>
-                  <td className="border border-black p-1"></td>
-                  <td className="border border-black p-1"></td>
-                  <td className="border border-black p-1"></td>
-                  <td className="border border-black p-1"></td>
-                  <td className="border border-black p-1"></td>
-                  <td className="border border-black p-1"></td>
-                  <td className="border border-black p-1"></td>
+                {/* Row 2: Unified Flat State Row across all 3 columns */}
+                <tr className="border-t border-b border-black text-[9.5px]">
+                  <td className="border-r border-black p-0">
+                    <div className="grid grid-cols-2 divide-x divide-black bg-white">
+                      <div className="px-1.5 py-0.5 font-normal">STATE : &nbsp; {s.state || 'AP'}</div>
+                      <div className="px-1.5 py-0.5 font-normal">STATE CODE {s.state_code || '37'}</div>
+                    </div>
+                  </td>
+                  <td className="border-r border-black p-0">
+                    <div className="grid grid-cols-2 divide-x divide-black bg-white">
+                      <div className="px-1.5 py-0.5 font-normal">STATE : &nbsp; {b.state || 'AP'}</div>
+                      <div className="px-1.5 py-0.5 font-normal">STATE CODE: &nbsp; {b.state_code || '37'}</div>
+                    </div>
+                  </td>
+                  <td className="p-0">
+                    <div className="grid grid-cols-2 divide-x divide-black bg-white">
+                      <div className="px-1.5 py-0.5 font-normal">STATE : &nbsp; {c.state || b.state || 'AP'}</div>
+                      <div className="px-1.5 py-0.5 font-normal">STATE CODE: &nbsp; {c.state_code || b.state_code || '37'}</div>
+                    </div>
+                  </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
 
-        {/* Totals Box */}
-        <table className="inv-totals w-full border border-black border-t-0 text-[10px]">
-          <tbody>
-            <tr>
-              <td className="border border-black p-1 font-bold bg-slate-100 text-slate-800 text-left" colSpan={7}>
-                Total Items: {items.length}
-              </td>
-              <td className="border border-black p-1 font-bold text-center">
-                Total Qty: <span className="text-xs font-black">{inv.total_qty}</span>
-              </td>
-              <td className="border border-black p-1 font-bold text-right bg-slate-100">Subtotal:</td>
-              <td className="border border-black p-1 font-black text-right w-24">₹{Number(inv.subtotal).toFixed(2)}</td>
-            </tr>
-            <tr>
-              <td className="border border-black p-1 font-bold text-right bg-slate-50" colSpan={8}>
-                Bill Discount:
-              </td>
-              <td className="border border-black p-1 font-bold text-right" colSpan={2}>
-                - ₹{Number(inv.discount || 0).toFixed(2)}
-              </td>
-            </tr>
-            <tr>
-              <td className="border border-black p-1 font-bold text-right bg-slate-50" colSpan={8}>
-                Round Off:
-              </td>
-              <td className="border border-black p-1 font-bold text-right" colSpan={2}>
-                {inv.round_off >= 0 ? `+₹${Number(inv.round_off).toFixed(2)}` : `-₹${Math.abs(Number(inv.round_off)).toFixed(2)}`}
-              </td>
-            </tr>
-            <tr className="bg-slate-200 text-black">
-              <td className="border border-black p-2 font-black text-xs text-right uppercase" colSpan={8}>
-                Net Amount Payable:
-              </td>
-              <td className="border border-black p-2 font-black text-base text-right font-mono" colSpan={2}>
-                ₹{Number(inv.net_total).toFixed(2)}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+            {/* Items Table & Totals */}
+            <table className="bill-table w-full table-fixed border-collapse text-[9.5px]">
+              <colgroup>
+                {/* Zone 1: 5.5% + 7.5% + 24% = 37% (Matches Supplier column exactly) */}
+                <col style={{ width: '5.5%' }} />
+                <col style={{ width: '7.5%' }} />
+                <col style={{ width: '24%' }} />
+                {/* Zone 2: 8.5% + 5% + 4.5% + 5% + 4% = 27% (Matches Receiver column exactly) */}
+                <col style={{ width: '8.5%' }} />
+                <col style={{ width: '5%' }} />
+                <col style={{ width: '4.5%' }} />
+                <col style={{ width: '5%' }} />
+                <col style={{ width: '4%' }} />
+                {/* Zone 3: 3.5% + 5.5% + 5% + 7% + 5% + 10% = 36% (Matches Consignee column exactly) */}
+                <col style={{ width: '3.5%' }} />
+                <col style={{ width: '5.5%' }} />
+                <col style={{ width: '5%' }} />
+                <col style={{ width: '7%' }} />
+                <col style={{ width: '5%' }} />
+                <col style={{ width: '10%' }} />
+              </colgroup>
 
-        {/* Amount in words */}
-        <div className="inv-words border border-black border-t-0 p-2 text-xs font-bold bg-slate-50">
-          Amount in Words: <span className="font-extrabold uppercase text-black">{inv.amount_in_words || '—'}</span>
-        </div>
+              <thead>
+                <tr className="border-b border-black font-bold text-center text-[9px] leading-tight bg-white">
+                  <th className="border-r border-black p-1 uppercase">MFR</th>
+                  <th className="border-r border-black p-1">
+                    HSN<br />Code
+                  </th>
+                  <th className="border-r border-black p-1 text-center uppercase">PRODUCT NAME</th>
+                  <th className="border-r border-black p-1">Batch No</th>
+                  <th className="border-r border-black p-1">Expiry</th>
+                  <th className="border-r border-black p-1 uppercase">UOM</th>
+                  <th className="border-r border-black p-1 uppercase">MRP</th>
+                  <th className="border-r border-black p-1">Qty</th>
+                  <th className="border-r border-black p-1">Free</th>
+                  <th className="border-r border-black p-1 uppercase">RATE</th>
+                  <th className="border-r border-black p-1 uppercase">PTR</th>
+                  <th className="border-r border-black p-1 uppercase">AMOUNT</th>
+                  <th className="border-r border-black p-1 uppercase">
+                    DISCO<br />UNT<br />%
+                  </th>
+                  <th className="p-1 uppercase">TOTAL</th>
+                </tr>
+              </thead>
 
-        {/* Footer: Terms, Bank Details, Signature */}
-        <div className="inv-footer border border-black border-t-0 grid grid-cols-1 md:grid-cols-2 text-[10px] divide-y md:divide-y-0 md:divide-x divide-black">
-          {/* Bank & Terms */}
-          <div className="inv-footer-left p-3 space-y-2">
-            <div>
-              <span className="font-black uppercase text-[10px] block mb-0.5">Bank Details:</span>
-              <p>Bank: <span className="font-bold">{s.bank_name || 'HDFC Bank'}</span></p>
-              <p>A/C No: <span className="font-bold font-mono">{s.account_no || '50200000000000'}</span></p>
-              <p>IFSC: <span className="font-bold font-mono">{s.ifsc || 'HDFC0000000'}</span></p>
-            </div>
-            <div className="pt-2 border-t border-dotted border-black">
-              <span className="font-bold uppercase text-[9px] block">Terms & Conditions:</span>
-              <ul className="list-disc pl-3 text-[9px] text-slate-700 space-y-0.5">
-                <li>Goods once sold will not be taken back or exchanged.</li>
-                <li>Interest @ 24% p.a. will be charged if payment is not received within due date.</li>
-                <li>Subject to Eluru jurisdiction only.</li>
-              </ul>
-            </div>
-          </div>
+              <tbody>
+                {items.map((it, idx) => (
+                  <tr key={it.id || idx} className="text-[9px] leading-tight">
+                    <td className="border-r border-black px-1 py-0.5 text-left uppercase break-words">
+                      {it.product?.mfr || it.mfr || ''}
+                    </td>
+                    <td className="border-r border-black px-0.5 py-0.5 text-center font-mono text-[8.5px] whitespace-nowrap overflow-hidden">
+                      {it.product?.hsn || it.hsn || ''}
+                    </td>
+                    <td className="border-r border-black px-1 py-0.5 text-left font-medium uppercase break-words">
+                      {it.product?.name || it.name || ''}
+                    </td>
+                    <td className="border-r border-black px-0.5 py-0.5 text-left font-mono text-[8.5px] uppercase whitespace-nowrap overflow-hidden">
+                      {it.batch_no || ''}
+                    </td>
+                    <td className="border-r border-black px-0.5 py-0.5 text-center text-[8.5px] whitespace-nowrap">
+                      {it.expiry || ''}
+                    </td>
+                    <td className="border-r border-black px-0.5 py-0.5 text-center uppercase text-[8.5px] whitespace-nowrap">
+                      {it.uom || ''}
+                    </td>
+                    <td className="border-r border-black px-0.5 py-0.5 text-right font-mono text-[8.5px] whitespace-nowrap">
+                      {Number(it.mrp || 0) > 0 ? Number(it.mrp).toFixed(2) : ''}
+                    </td>
+                    <td className="border-r border-black px-0.5 py-0.5 text-center font-semibold text-[8.5px] whitespace-nowrap">
+                      {it.qty || ''}
+                    </td>
+                    <td className="border-r border-black px-0.5 py-0.5 text-center text-[8.5px] whitespace-nowrap">
+                      {Number(it.free || 0) > 0 ? it.free : ''}
+                    </td>
+                    <td className="border-r border-black px-0.5 py-0.5 text-right font-mono text-[8.5px] whitespace-nowrap">
+                      {Number(it.rate || 0) > 0 ? Number(it.rate).toFixed(2) : ''}
+                    </td>
+                    <td className="border-r border-black px-0.5 py-0.5 text-right font-mono text-[8.5px] whitespace-nowrap">
+                      {Number(it.ptr || 0) > 0 ? Number(it.ptr).toFixed(2) : ''}
+                    </td>
+                    <td className="border-r border-black px-1 py-0.5 text-right font-mono font-medium text-[8.5px] whitespace-nowrap">
+                      {Number(it.amount || 0).toFixed(2)}
+                    </td>
+                    <td className="border-r border-black px-0.5 py-0.5 text-center font-mono text-[8.5px] whitespace-nowrap">
+                      {Number(it.discount_pct || 0) > 0 ? `${it.discount_pct}` : ''}
+                    </td>
+                    <td className="px-1 py-0.5 text-right font-mono font-medium text-[8.5px] whitespace-nowrap">
+                      {Number(it.total || 0).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
 
-          {/* Signatory */}
-          <div className="inv-footer-right p-4 flex flex-col justify-between items-end text-right">
-            <div>
-              <p className="font-bold text-xs uppercase">For {s.name || 'SATYA SAI MEDICAL AGENCIES'}</p>
-            </div>
-            <div className="inv-footer-sig mt-12 pt-1 border-t border-black w-48 text-center text-[10px] font-bold">
-              Authorised Signatory
-            </div>
+                {/* Vertical grid filler row that matches traditional billing stationary */}
+                <tr style={{ height: `${blankHeight}px` }}>
+                  <td className="border-r border-black">&nbsp;</td>
+                  <td className="border-r border-black">&nbsp;</td>
+                  <td className="border-r border-black">&nbsp;</td>
+                  <td className="border-r border-black">&nbsp;</td>
+                  <td className="border-r border-black">&nbsp;</td>
+                  <td className="border-r border-black">&nbsp;</td>
+                  <td className="border-r border-black">&nbsp;</td>
+                  <td className="border-r border-black">&nbsp;</td>
+                  <td className="border-r border-black">&nbsp;</td>
+                  <td className="border-r border-black">&nbsp;</td>
+                  <td className="border-r border-black">&nbsp;</td>
+                  <td className="border-r border-black">&nbsp;</td>
+                  <td className="border-r border-black">&nbsp;</td>
+                  <td>&nbsp;</td>
+                </tr>
+              </tbody>
+
+              {/* Totals & Bottom Summary */}
+              <tfoot>
+                {/* Row 1: TOTAL QUNTITY & TOTAL */}
+                <tr className="border-t border-b border-black font-bold">
+                  <td colSpan={7} className="border-r border-black pr-2 text-right text-[10px]">
+                    TOTAL QUNTITY
+                  </td>
+                  <td className="border-r border-black text-center text-[10px]">
+                    {inv.total_qty}
+                  </td>
+                  <td colSpan={5} className="border-r border-black pr-2 text-right text-[10px]">
+                    TOTAL
+                  </td>
+                  <td className="text-right pr-1 font-mono text-[10px]">
+                    {Number(inv.subtotal).toFixed(2)}
+                  </td>
+                </tr>
+
+                {/* Row 2: DISCOUNT */}
+                <tr className="border-b border-black font-bold">
+                  <td colSpan={8} className="border-r border-black h-4">&nbsp;</td>
+                  <td colSpan={5} className="border-r border-black pr-2 text-right text-[10px]">
+                    DISCOUNT
+                  </td>
+                  <td className="text-right pr-1 font-mono text-[10px]">
+                    {Number(inv.discount || 0) === 0 ? '0' : Number(inv.discount).toFixed(2)}
+                  </td>
+                </tr>
+
+                {/* Row 3: AMOUNT IN WORDS & ROUND OFF */}
+                <tr className="border-b border-black">
+                  <td colSpan={8} className="border-r border-black px-2 py-0.5 text-[9.5px]">
+                    <span className="font-bold">TOTAL INVOICE VALUE IN WORDS:</span>
+                    <span className="ml-4 font-semibold uppercase">{inv.amount_in_words || '—'}</span>
+                  </td>
+                  <td colSpan={5} className="border-r border-black pr-2 text-right font-bold text-[10px]">
+                    ROUND OFF
+                  </td>
+                  <td className="text-right pr-1 font-mono font-bold text-[10px]">
+                    {inv.round_off ? (inv.round_off > 0 ? `+${Number(inv.round_off).toFixed(2)}` : Number(inv.round_off).toFixed(2)) : '-0.00'}
+                  </td>
+                </tr>
+
+                {/* Row 4: BANK DETAILS & NET TOTAL */}
+                <tr className="border-b border-black">
+                  <td colSpan={8} className="border-r border-black px-2 py-0.5 text-[9px] leading-tight">
+                    <span className="font-bold">BANK NAME: </span>
+                    <span className="font-semibold">{s.bank_name || 'State Bank of India R.R.Pet,Eluru. BR'}, </span>
+                    <span className="font-bold">ACCOUNT NO: </span>
+                    <span className="font-semibold">{s.account_no || '37047328014'}, </span>
+                    <span className="font-bold">IFSC CODE: </span>
+                    <span className="font-semibold">{s.ifsc_code || s.ifsc || 'SBIN0009771'}</span>
+                  </td>
+                  <td colSpan={5} className="border-r border-black pr-2 text-right font-bold text-[10.5px]">
+                    NET TOTAL
+                  </td>
+                  <td className="text-right pr-1 font-mono font-bold text-[11px]">
+                    {Number(inv.net_total).toFixed(2)}
+                  </td>
+                </tr>
+
+                {/* Row 5: DECLARATION & SIGNATURE */}
+                <tr className="border-b border-black">
+                  <td colSpan={8} className="border-r border-black border-b border-black px-2 py-1 align-top text-[8.5px] leading-snug">
+                    <div className="font-normal">Certifies that the particulars given above are true and correct.</div>
+                    <div>1.Drugs Supplied under this invoice comply with the previous of section 18 of Drugs Cosmotio Act.1940</div>
+                    <div>2.Goods are sold on an understaning that buyer is holding all requisite valid drug Municipal tax.</div>
+                    <div>3. No climes for shortages, damages & breakages etc, will be enertained once the goods leaves our</div>
+                    <div className="flex justify-between">
+                      <span>4. Sold to as per company price list erms,</span>
+                      <span className="pr-2">5.All disputes are Subjected to Eluru Jurisdiction Only.</span>
+                    </div>
+                    <div className="mt-0.5 font-normal">Composit dealer, not eligible to collect tax on supplies</div>
+                  </td>
+                  <td colSpan={6} className="border-b border-black px-3 py-1.5 align-top text-right text-[9.5px]">
+                    <div className="font-bold text-[10px]">
+                      For &nbsp;&nbsp; {s.name || 'SATYASAI MEDICAL AGENCIES,'}
+                    </div>
+                    <div className="h-7"></div>
+                    <div className="text-center text-[9.5px] font-normal">
+                      Authirised signetore
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </div>
       </div>
